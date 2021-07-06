@@ -14,6 +14,7 @@ namespace TelegramJSON2SQLApp
             JsonSerializer serializer = new JsonSerializer();
             Model o;
             Message msg;
+            int counter = 0;
             using (FileStream fs = File.Open(@"E:\telegramir\db.json", FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (BufferedStream bs = new BufferedStream(fs))
             using (StreamReader sr = new StreamReader(bs))
@@ -21,6 +22,11 @@ namespace TelegramJSON2SQLApp
                 string line;
                 while ((line = await sr.ReadLineAsync()) != null)
                 {
+                    if (counter <= 81736)
+                    {
+                        counter += 1;
+                        continue;
+                    }
                     if (line.StartsWith("{\"message\""))
                     {
                         using (StringReader sr2 = new StringReader(line))
