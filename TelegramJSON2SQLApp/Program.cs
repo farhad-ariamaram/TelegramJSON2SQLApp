@@ -1,8 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Data;
+using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
-using TelegramJSON2SQLApp.Models;
 
 namespace TelegramJSON2SQLApp
 {
@@ -10,11 +11,16 @@ namespace TelegramJSON2SQLApp
     {
         static async Task Main(string[] args)
         {
-            TelegramDBContext _db = new TelegramDBContext();
             JsonSerializer serializer = new JsonSerializer();
             Model o;
             Message msg;
-            int counter = 0;
+            long counter = 0;
+            long counterFrom = Int64.Parse(ReadCounter());
+            SqlConnection conn = new SqlConnection("Server=.;Database=TelegramDB;Trusted_Connection=True;");
+            SqlCommand cmd = new SqlCommand("AddNew", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
+            await conn.OpenAsync();
+
             using (FileStream fs = File.Open(@"E:\telegramir\db.json", FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (BufferedStream bs = new BufferedStream(fs))
             using (StreamReader sr = new StreamReader(bs))
@@ -22,13 +28,13 @@ namespace TelegramJSON2SQLApp
                 string line;
                 while ((line = await sr.ReadLineAsync()) != null)
                 {
-                    if (counter <= 81736)
-                    {
-                        counter += 1;
-                        continue;
-                    }
                     if (line.StartsWith("{\"message\""))
                     {
+                        if (counter <= counterFrom)
+                        {
+                            counter += 1;
+                            continue;
+                        }
                         using (StringReader sr2 = new StringReader(line))
                         using (JsonReader reader = new JsonTextReader(sr2))
                         {
@@ -40,14 +46,13 @@ namespace TelegramJSON2SQLApp
                                     {
                                         o = serializer.Deserialize<Model>(reader);
                                         msg = JsonConvert.DeserializeObject<Message>(o.Message);
-                                        await _db.People.AddAsync(new Person
-                                        {
-                                            Fname = msg.FirstName,
-                                            Lname = msg.LastName,
-                                            Phone = msg.Phone,
-                                            Username = o.Username
-                                        });
-                                        await _db.SaveChangesAsync();
+
+                                        cmd.Parameters.AddWithValue("@fname", msg.FirstName);
+                                        cmd.Parameters.AddWithValue("@lname", msg.LastName);
+                                        cmd.Parameters.AddWithValue("@phone", msg.Phone);
+                                        cmd.Parameters.AddWithValue("@username", o.Username);
+                                        await cmd.ExecuteNonQueryAsync();
+                                        cmd.Parameters.Clear();
                                     }
                                     catch (Exception)
                                     {
@@ -59,7 +64,18 @@ namespace TelegramJSON2SQLApp
                     }
                 }
             }
+
             Console.ReadKey();
+        }
+
+        private static string ReadCounter()
+        {
+            string s = null;
+            using (StreamReader sr = File.OpenText("c.txt"))
+            {
+                s = sr.ReadLine();
+            }
+            return s;
         }
 
     }
