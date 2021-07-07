@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -16,12 +16,12 @@ namespace TelegramJSON2SQLApp
             Message msg;
             long counter = 0;
             long counterFrom = Int64.Parse(ReadCounter());
-            SqlConnection conn = new SqlConnection("Server=.;Database=TelegramDB;Trusted_Connection=True;");
+            SqlConnection conn = new SqlConnection(ReadCS());
             SqlCommand cmd = new SqlCommand("AddNew", conn);
             cmd.CommandType = CommandType.StoredProcedure;
             await conn.OpenAsync();
 
-            using (FileStream fs = File.Open(@"E:\telegramir\db.json", FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (FileStream fs = File.Open(ReadJA(), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (BufferedStream bs = new BufferedStream(fs))
             using (StreamReader sr = new StreamReader(bs))
             {
@@ -47,15 +47,19 @@ namespace TelegramJSON2SQLApp
                                         o = serializer.Deserialize<Model>(reader);
                                         msg = JsonConvert.DeserializeObject<Message>(o.Message);
 
+                                        var username = o.Username == null ? "" : o.Username;
+
                                         cmd.Parameters.AddWithValue("@fname", msg.FirstName);
                                         cmd.Parameters.AddWithValue("@lname", msg.LastName);
                                         cmd.Parameters.AddWithValue("@phone", msg.Phone);
-                                        cmd.Parameters.AddWithValue("@username", o.Username);
+                                        cmd.Parameters.AddWithValue("@username", username);
+
                                         await cmd.ExecuteNonQueryAsync();
                                         cmd.Parameters.Clear();
                                     }
-                                    catch (Exception)
+                                    catch (Exception e)
                                     {
+                                        Console.WriteLine(e.Message);
                                         continue;
                                     }
                                 }
@@ -72,6 +76,26 @@ namespace TelegramJSON2SQLApp
         {
             string s = null;
             using (StreamReader sr = File.OpenText("c.txt"))
+            {
+                s = sr.ReadLine();
+            }
+            return s;
+        }
+
+        private static string ReadCS()
+        {
+            string s = null;
+            using (StreamReader sr = File.OpenText("cs.txt"))
+            {
+                s = sr.ReadLine();
+            }
+            return s;
+        }
+
+        private static string ReadJA()
+        {
+            string s = null;
+            using (StreamReader sr = File.OpenText("ja.txt"))
             {
                 s = sr.ReadLine();
             }
